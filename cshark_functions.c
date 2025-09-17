@@ -1,5 +1,15 @@
 #include "cshark.h"
 
+// Signal handler for Ctrl+C
+void signal_handler(int sig) {
+    if (sig == SIGINT) {
+        stop_sniffing = 1;
+        if (handle) {
+            pcap_breakloop(handle);
+        }
+    }
+}
+
 // Display available network interfaces
 void display_interfaces() {
     pcap_if_t *interfaces, *temp;
@@ -108,3 +118,34 @@ void main_menu(const char *device) {
         }
     }
 }
+
+// Start sniffing all packets
+void start_sniffing_all(const char *device) {
+    char errbuf[PCAP_ERRBUF_SIZE];
+
+    // Free previous session data
+    free_stored_packets();
+
+    handle = pcap_open_live(device, SNAP_LEN, 1, 1000, errbuf);
+    if (handle == NULL) {
+        fprintf(stderr, "Couldn't open device %s: %s\n", device, errbuf);
+        return;
+    }
+
+    printf("\n%s%s[C-Shark]%s Starting packet capture on %s%s%s...\n", 
+           COLOR_BOLD, COLOR_GREEN, COLOR_RESET, COLOR_CYAN, device, COLOR_RESET);
+    printf("%sPress Ctrl+C to stop sniffing and return to menu.%s\n\n", COLOR_YELLOW, COLOR_RESET);
+
+    packet_count = 0;
+    stop_sniffing = 0;
+    signal(SIGINT, signal_handler);
+
+    pcap_loop(handle, -1, packet_handler, NULL);
+
+    pcap_close(handle);
+    handle = NULL;
+    signal(SIGINT, SIG_DFL);
+    printf("\n[C-Shark] Capture stopped. Captured %d packets.\n", packet_count);
+    printf("[C-Shark] Stored %d packets for inspection.\n", stored_count);
+}
+
