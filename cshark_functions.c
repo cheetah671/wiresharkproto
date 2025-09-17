@@ -67,3 +67,44 @@ int select_interface(char *device) {
     pcap_freealldevs(interfaces);
     return 0;
 }
+
+// Main menu
+void main_menu(const char *device) {
+    int choice;
+
+    while (1) {
+        printf("\n%s%s[C-Shark]%s Interface '%s%s%s' selected. What's next?\n\n", 
+               COLOR_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, device, COLOR_RESET);
+        printf("%s1.%s Start Sniffing (%sAll Packets%s)\n", COLOR_BOLD, COLOR_RESET, COLOR_GREEN, COLOR_RESET);
+        printf("%s2.%s Start Sniffing (%sWith Filters%s)\n", COLOR_BOLD, COLOR_RESET, COLOR_YELLOW, COLOR_RESET);
+        printf("%s3.%s Inspect Last Session\n", COLOR_BOLD, COLOR_RESET);
+        printf("%s4.%s Exit C-Shark\n\n", COLOR_BOLD, COLOR_RESET);
+        printf("%sEnter your choice:%s ", COLOR_BOLD, COLOR_RESET);
+
+        if (scanf("%d", &choice) != 1) {
+            // Handle EOF (Ctrl+D) or invalid input
+            printf("\nExiting C-Shark. Goodbye!\n");
+            free_stored_packets();
+            exit(0);
+        }
+        getchar(); // consume newline
+
+        switch (choice) {
+            case 1:
+                start_sniffing_all(device);
+                break;
+            case 2:
+                start_sniffing_filtered(device);
+                break;
+            case 3:
+                inspect_last_session();
+                break;
+            case 4:
+                printf("Exiting C-Shark. Goodbye!\n");
+                free_stored_packets();
+                exit(0);
+            default:
+                printf("Invalid choice! Please try again.\n");
+        }
+    }
+}
