@@ -215,3 +215,82 @@ void display_arp_header(const u_char *packet) {
            ntohs(arp_header->ar_hrd), ntohs(arp_header->ar_pro),
            arp_header->ar_hln, arp_header->ar_pln);
 }
+
+// Display TCP header
+void display_tcp_header(const u_char *packet, int ip_header_len) {
+    struct tcp_header *tcp_header = (struct tcp_header*)(packet + sizeof(struct ether_header) + ip_header_len);
+    
+    int src_port = ntohs(tcp_header->th_sport);
+    int dst_port = ntohs(tcp_header->th_dport);
+
+    printf("%s%sL4 (TCP):%s Src Port: %s%d%s", COLOR_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, src_port, COLOR_RESET);
+    const char *src_service = get_port_name(src_port);
+    if (src_service) printf(" (%s%s%s)", COLOR_YELLOW, src_service, COLOR_RESET);
+
+    printf(" | Dst Port: %s%d%s", COLOR_RED, dst_port, COLOR_RESET);
+    const char *dst_service = get_port_name(dst_port);
+    if (dst_service) printf(" (%s%s%s)", COLOR_YELLOW, dst_service, COLOR_RESET);
+
+    printf(" | Seq: %s%u%s | Ack: %s%u%s | Flags: [%s",
+           COLOR_BLUE, ntohl(tcp_header->th_seq), COLOR_RESET,
+           COLOR_MAGENTA, ntohl(tcp_header->th_ack), COLOR_RESET, COLOR_BOLD);
+
+    int first_flag = 1;
+    if (tcp_header->th_flags & TH_SYN) {
+        printf("SYN"); first_flag = 0;
+    }
+    if (tcp_header->th_flags & TH_ACK) {
+        if (!first_flag) printf(",");
+        printf("ACK"); first_flag = 0;
+    }
+    if (tcp_header->th_flags & TH_FIN) {
+        if (!first_flag) printf(",");
+        printf("FIN"); first_flag = 0;
+    }
+    if (tcp_header->th_flags & TH_RST) {
+        if (!first_flag) printf(",");
+        printf("RST"); first_flag = 0;
+    }
+    if (tcp_header->th_flags & TH_PUSH) {
+        if (!first_flag) printf(",");
+        printf("PSH"); first_flag = 0;
+    }
+    if (tcp_header->th_flags & TH_URG) {
+        if (!first_flag) printf(",");
+        printf("URG"); first_flag = 0;
+    }
+
+    printf("%s]\n", COLOR_RESET);
+    printf("Window: %s%d%s | Checksum: %s0x%04X%s | Header Length: %s%d%s bytes\n",
+           COLOR_GREEN, ntohs(tcp_header->th_win), COLOR_RESET,
+           COLOR_YELLOW, ntohs(tcp_header->th_sum), COLOR_RESET,
+           COLOR_BLUE, TH_OFF(tcp_header) * 4, COLOR_RESET);
+
+    // Display payload
+    int total_headers_len = sizeof(struct ether_header) + ip_header_len + (TH_OFF(tcp_header) * 4);
+    display_payload(packet, stored_packets[stored_count - 1].length, total_headers_len, src_port, dst_port);
+}
+
+// Display UDP header
+void display_udp_header(const u_char *packet, int ip_header_len) {
+    struct udphdr *udp_header = (struct udphdr*)(packet + sizeof(struct ether_header) + ip_header_len);
+    
+    int src_port = ntohs(udp_header->uh_sport);
+    int dst_port = ntohs(udp_header->uh_dport);
+
+    printf("%s%sL4 (UDP):%s Src Port: %s%d%s", COLOR_BOLD, COLOR_MAGENTA, COLOR_RESET, COLOR_GREEN, src_port, COLOR_RESET);
+    const char *src_service = get_port_name(src_port);
+    if (src_service) printf(" (%s%s%s)", COLOR_YELLOW, src_service, COLOR_RESET);
+
+    printf(" | Dst Port: %s%d%s", COLOR_RED, dst_port, COLOR_RESET);
+    const char *dst_service = get_port_name(dst_port);
+    if (dst_service) printf(" (%s%s%s)", COLOR_YELLOW, dst_service, COLOR_RESET);
+
+    printf(" | Length: %s%d%s | Checksum: %s0x%04X%s\n",
+           COLOR_BLUE, ntohs(udp_header->uh_ulen), COLOR_RESET,
+           COLOR_CYAN, ntohs(udp_header->uh_sum), COLOR_RESET);
+
+    // Display payload
+    int total_headers_len = sizeof(struct ether_header) + ip_header_len + sizeof(struct udphdr);
+    display_payload(packet, stored_packets[stored_count - 1].length, total_headers_len, src_port, dst_port);
+}
